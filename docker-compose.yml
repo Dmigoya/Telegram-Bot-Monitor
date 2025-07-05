@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  telegram-monitor:
+    build: .
+    container_name: telegram-monitor
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - /etc:/host_etc:ro
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
