@@ -3,7 +3,7 @@ from telegram import Bot
 from importlib import import_module
 
 bot = Bot(token=os.getenv("BOT_TOKEN"))
-user_id = int(os.getenv("TELEGRAM_USER_ID"))
+REPORT_IDS = [int(i) for i in os.getenv("TELEGRAM_REPORT_IDS", "").split(',') if i]
 
 def get_modules():
     from pathlib import Path
@@ -14,9 +14,12 @@ async def send_report():
     for mod_name in get_modules():
         mod = import_module(f"bot.modules.{mod_name}")
         try:
-            output = mod.run()
+            output = mod.report()
             if output:
                 msgs.append(f"[{mod_name}]\n{output}")
         except Exception as e:
             msgs.append(f"[{mod_name}] Error: {e}")
-    await bot.send_message(chat_id=user_id, text="\n\n".join(msgs[:10]))
+    text = "\n\n".join(msgs[:10])
+    for rid in REPORT_IDS:
+        await bot.send_message(chat_id=rid, text=text)
+

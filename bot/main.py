@@ -1,31 +1,69 @@
-import asyncio, os, signal
+import asyncio
+import os
+from importlib import import_module
+from pathlib import Path
+from telegram import BotCommand
+from telegram.ext import Application, CommandHandler
+
 from bot import notifier
-from bot import test_connection
+from bot.auth import auth_required
 
-INTERVAL = int(os.getenv("CHECK_INTERVAL", 300))
+CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 300))
 
-stop_event = asyncio.Event()
+_dynamic_handlers = []
 
 
-async def shutdown() -> None:
-    """Send a disconnect notice and stop the loop."""
-    await notifier.bot.send_message(
-        chat_id=notifier.user_id, text="❌ Bot de notificaciones detenido"
-    )
-    stop_event.set()
+def discover_modules():
+    modules = []
+    for file in Path(__file__).parent.joinpath("modules").glob("*.py"):
+        if file.stem == "__init__":
+            continue
+        mod = import_module(f"bot.modules.{file.stem}")
+        modules.append(mod)
+    return modules
+
+
+def build_handler(mod):
+    async def handler(update, context):
+        await mod.run(update, context)
+    return handler
+
+
+async def register_dynamic_commands(app: Application):
+    for h in _dynamic_handlers:
+        app.remove_handler(h, group=1)
+    _dynamic_handlers.clear()
+    commands = []
+    for mod in discover_modules():
+        handler = CommandHandler(mod.CMD_NAME, auth_required(build_handler(mod)))
+        app.add_handler(handler, group=1)
+        _dynamic_handlers.append(handler)
+        commands.append(BotCommand(mod.CMD_NAME, mod.CMD_DESC))
+    await app.bot.set_my_commands(commands)
+
+
+async def refresh(update, context):
+    await register_dynamic_commands(context.application)
+    await update.message.reply_text("\ud83d\udd04 Comandos recargados")
+
+
+async def periodic_reports():
+    while True:
+        await notifier.send_report()
+        await asyncio.sleep(CHECK_INTERVAL)
+
 
 async def main():
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(shutdown()))
+    app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
 
-    await test_connection.run()
-    while not stop_event.is_set():
-        await notifier.send_report()
-        try:
-            await asyncio.wait_for(stop_event.wait(), timeout=INTERVAL)
-        except asyncio.TimeoutError:
-            pass
+    await register_dynamic_commands(app)
+    app.add_handler(CommandHandler("refresh", auth_required(refresh)), group=0)
+
+    app.create_task(periodic_reports())
+
+    await app.run_polling()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
+
