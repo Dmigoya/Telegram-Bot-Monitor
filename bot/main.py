@@ -3,7 +3,7 @@ import os
 from importlib import import_module
 from pathlib import Path
 from telegram import BotCommand
-from telegram.ext import Application, CommandHandler
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 from bot import notifier
 from bot.auth import auth_required
@@ -47,23 +47,18 @@ async def refresh(update, context):
     await update.message.reply_text("\ud83d\udd04 Comandos recargados")
 
 
-async def periodic_reports():
-    while True:
-        await notifier.send_report()
-        await asyncio.sleep(CHECK_INTERVAL)
+async def report_job(context: ContextTypes.DEFAULT_TYPE):
+    await notifier.send_report()
 
 
-async def main():
+def main():
     app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
-
-    await register_dynamic_commands(app)
+    asyncio.run(register_dynamic_commands(app))
     app.add_handler(CommandHandler("refresh", auth_required(refresh)), group=0)
-
-    app.create_task(periodic_reports())
-
-    await app.run_polling()
+    app.job_queue.run_repeating(report_job, interval=CHECK_INTERVAL)
+    app.run_polling()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
 
