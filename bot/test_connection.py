@@ -5,13 +5,14 @@ from telegram import Bot
 async def run() -> None:
     """Send a test message to confirm bot connectivity."""
     token = os.getenv("BOT_TOKEN")
-    user = os.getenv("TELEGRAM_USER_ID")
-    if not token or not user:
-        raise RuntimeError("BOT_TOKEN and TELEGRAM_USER_ID must be set")
+    users = [int(i) for i in os.getenv("TELEGRAM_REPORT_IDS", "").split(',') if i]
+    if not token or not users:
+        raise RuntimeError("BOT_TOKEN and TELEGRAM_REPORT_IDS must be set")
     bot = Bot(token=token)
-    await bot.send_message(chat_id=int(user), text="✅ Bot de notificaciones conectado")
+    await bot.send_message(chat_id=users[0], text="✅ Bot de notificaciones conectado")
 
 
 if __name__ == "__main__":
     import asyncio
     asyncio.run(run())
+

@@ -17,9 +17,25 @@ docker compose up -d --build
 
 ## Expansión
 
-Agrega módulos en `bot/modules/`. Cada módulo debe implementar:
+Agrega módulos en `bot/modules/` siguiendo la convención:
 
 ```python
-def run() -> str:
-    return "Mensaje que será enviado"
+CMD_NAME = "mem"        # nombre del comando
+CMD_DESC = "Uso de RAM" # descripción
+
+def report() -> str:
+    ...  # texto para los reportes automáticos
+
+async def run(update, context):
+    await update.message.reply_text(report())
 ```
+
+Ejecuta `/refresh` para que el bot descubra nuevos comandos sin reiniciar.
+
+### Seguridad de comandos
+- **Administradores** (`TELEGRAM_ADMIN_IDS`): pueden ejecutar comandos.
+- **Receptores**   (`TELEGRAM_REPORT_IDS`): reciben reportes automáticos.
+
+Ambas variables aceptan múltiples IDs separados por coma.
+Usuarios no listados obtendrán respuesta 🚫 y, tras `BAN_THRESHOLD` intentos, serán baneados `BAN_TIME` segundos.
+
