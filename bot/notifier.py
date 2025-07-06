@@ -16,7 +16,7 @@ async def send_report():
         try:
             output = mod.run()
             if output:
-                msgs.append(f"[{mod_name}] {output}")
+                msgs.append(f"[{mod_name}]\n{output}")
         except Exception as e:
             msgs.append(f"[{mod_name}] Error: {e}")
     await bot.send_message(chat_id=user_id, text="\n\n".join(msgs[:10]))
