@@ -63,18 +63,19 @@ async def post_init(application: Application) -> None:
         application.create_task(periodic_reports())
 
 
-def main():
+async def main() -> None:
+    """Start the bot with dynamic command support."""
     app = (
         Application.builder()
         .token(os.getenv("BOT_TOKEN"))
         .post_init(post_init)
         .build()
     )
-    asyncio.run(register_dynamic_commands(app))
+    await register_dynamic_commands(app)
     app.add_handler(CommandHandler("refresh", auth_required(refresh)), group=0)
-    app.run_polling()
+    await app.run_polling()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 
