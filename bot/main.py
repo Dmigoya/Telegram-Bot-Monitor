@@ -5,12 +5,25 @@ from pathlib import Path
 from telegram import BotCommand
 from telegram.ext import Application, CommandHandler, ContextTypes
 
+START_MSG = "\u2705 Bot de notificaciones conectado"
+STOP_MSG = "\u274C Bot de notificaciones detenido"
+
 from bot import notifier
 from bot.auth import auth_required
 
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 300))
 
 _dynamic_handlers = []
+
+
+async def send_startup() -> None:
+    for uid in notifier.REPORT_IDS:
+        await notifier.bot.send_message(chat_id=uid, text=START_MSG)
+
+
+async def send_shutdown() -> None:
+    for uid in notifier.REPORT_IDS:
+        await notifier.bot.send_message(chat_id=uid, text=STOP_MSG)
 
 
 def discover_modules():
@@ -58,10 +71,15 @@ async def periodic_reports():
 
 async def post_init(application: Application) -> None:
     await register_dynamic_commands(application)
+    await send_startup()
     if application.job_queue:
         application.job_queue.run_repeating(report_job, interval=CHECK_INTERVAL)
     else:
         application.create_task(periodic_reports())
+
+
+async def post_shutdown(application: Application) -> None:
+    await send_shutdown()
 
 
 def main() -> None:
@@ -70,6 +88,7 @@ def main() -> None:
         Application.builder()
         .token(os.getenv("BOT_TOKEN"))
         .post_init(post_init)
+        .post_shutdown(post_shutdown)
         .build()
     )
     app.add_handler(CommandHandler("refresh", auth_required(refresh)), group=0)

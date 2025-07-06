@@ -10,5 +10,5 @@ def report():
 
 
 async def run(update, context):
-    await update.message.reply_text(f"<pre>{report()}</pre>", parse_mode="HTML")
+    await update.message.reply_text(report())
 
