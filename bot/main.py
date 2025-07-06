@@ -57,13 +57,14 @@ async def periodic_reports():
 
 
 async def post_init(application: Application) -> None:
+    await register_dynamic_commands(application)
     if application.job_queue:
         application.job_queue.run_repeating(report_job, interval=CHECK_INTERVAL)
     else:
         application.create_task(periodic_reports())
 
 
-async def main() -> None:
+def main() -> None:
     """Start the bot with dynamic command support."""
     app = (
         Application.builder()
@@ -71,11 +72,10 @@ async def main() -> None:
         .post_init(post_init)
         .build()
     )
-    await register_dynamic_commands(app)
     app.add_handler(CommandHandler("refresh", auth_required(refresh)), group=0)
-    await app.run_polling()
+    app.run_polling()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
 
