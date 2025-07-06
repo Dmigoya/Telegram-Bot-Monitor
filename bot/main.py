@@ -50,12 +50,28 @@ async def refresh(update, context):
 async def report_job(context: ContextTypes.DEFAULT_TYPE):
     await notifier.send_report()
 
+async def periodic_reports():
+    while True:
+        await notifier.send_report()
+        await asyncio.sleep(CHECK_INTERVAL)
+
+
+async def post_init(application: Application) -> None:
+    if application.job_queue:
+        application.job_queue.run_repeating(report_job, interval=CHECK_INTERVAL)
+    else:
+        application.create_task(periodic_reports())
+
 
 def main():
-    app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
+    app = (
+        Application.builder()
+        .token(os.getenv("BOT_TOKEN"))
+        .post_init(post_init)
+        .build()
+    )
     asyncio.run(register_dynamic_commands(app))
     app.add_handler(CommandHandler("refresh", auth_required(refresh)), group=0)
-    app.job_queue.run_repeating(report_job, interval=CHECK_INTERVAL)
     app.run_polling()
 
 
